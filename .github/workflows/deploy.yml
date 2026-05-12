@@ -43,7 +43,20 @@ jobs:
       CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
       CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
     steps:
+      - name: Check deployment configuration
+        id: config
+        run: |
+          configured=true
+          for name in DOKPLOY_APPLICATION_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
+            if [ -z "${!name}" ]; then
+              echo "::warning title=Missing secret::$name is not set; skipping Dokploy deployment."
+              configured=false
+            fi
+          done
+          echo "configured=$configured" >> "$GITHUB_OUTPUT"
+
       - name: Trigger deployment
+        if: steps.config.outputs.configured == 'true'
         run: |
           node <<'NODE'
           const required = [
