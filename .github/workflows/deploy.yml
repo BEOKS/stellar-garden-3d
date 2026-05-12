@@ -1,0 +1,102 @@
+name: Deploy to Dokploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: dokploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+  deploy:
+    name: Trigger Dokploy
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+    env:
+      DOKPLOY_ENDPOINT: https://console.onestack.run/api/trpc/application.deploy
+      DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+    steps:
+      - name: Trigger deployment
+        run: |
+          node <<'NODE'
+          const required = [
+            'DOKPLOY_APPLICATION_ID',
+            'CF_ACCESS_CLIENT_ID',
+            'CF_ACCESS_CLIENT_SECRET'
+          ];
+
+          const missing = required.filter((name) => !process.env[name]);
+          if (missing.length > 0) {
+            throw new Error(`Missing required secret(s): ${missing.join(', ')}`);
+          }
+
+          const headers = {
+            'content-type': 'application/json',
+            'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
+            'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET
+          };
+
+          if (process.env.DOKPLOY_API_KEY) {
+            headers['x-api-key'] = process.env.DOKPLOY_API_KEY;
+          }
+
+          const shortSha = process.env.GITHUB_SHA.slice(0, 7);
+          const payload = {
+            json: {
+              applicationId: process.env.DOKPLOY_APPLICATION_ID,
+              title: `GitHub push ${shortSha}`,
+              description: `${process.env.GITHUB_REPOSITORY}@${process.env.GITHUB_SHA}`
+            }
+          };
+
+          const response = await fetch(process.env.DOKPLOY_ENDPOINT, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+          });
+
+          const text = await response.text();
+          let body = text;
+          try {
+            body = text ? JSON.parse(text) : null;
+          } catch {
+            // Keep the raw body for diagnostics below.
+          }
+
+          if (!response.ok) {
+            const message = body?.error?.json?.message || body?.message || text || response.statusText;
+            throw new Error(`Dokploy deploy failed (${response.status}): ${message}`);
+          }
+
+          console.log('Dokploy deployment queued.');
+          if (body) {
+            console.log(JSON.stringify(body, null, 2));
+          }
+          NODE
