@@ -104,7 +104,10 @@ jobs:
           }
 
           if (!response.ok) {
-            const message = body?.error?.json?.message || body?.message || text || response.statusText;
+            let message = body?.error?.json?.message || body?.message || text || response.statusText;
+            if (response.status === 401 && !process.env.DOKPLOY_API_KEY) {
+              message += ' Add DOKPLOY_API_KEY as a repository secret if the Dokploy console requires API-key authentication after Cloudflare Access.';
+            }
             throw new Error(`Dokploy deploy failed (${response.status}): ${message}`);
           }
 
