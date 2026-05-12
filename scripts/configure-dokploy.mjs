@@ -28,6 +28,10 @@ if (!config.token) {
   throw new Error('DOKPLOY_API_KEY or DOKPLOY_AUTH_TOKEN must be set in the local environment.');
 }
 
+if (config.dokployUrl.includes('console.onestack.run') && (!config.cfClientId || !config.cfClientSecret)) {
+  throw new Error('CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must be set for https://console.onestack.run.');
+}
+
 if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
   throw new Error(`Invalid port: ${config.port}`);
 }
