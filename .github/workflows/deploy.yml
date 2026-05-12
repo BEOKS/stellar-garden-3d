@@ -38,6 +38,7 @@ jobs:
       contents: read
     env:
       DOKPLOY_ENDPOINT: https://console.onestack.run/api/trpc/compose.deploy
+      DOKPLOY_FALLBACK_ENDPOINT: http://211.47.74.86:3000/api/trpc/compose.deploy
       DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
       DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
       CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
@@ -90,30 +91,51 @@ jobs:
             }
           };
 
-          const response = await fetch(process.env.DOKPLOY_ENDPOINT, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload)
-          });
-
-          const text = await response.text();
-          let body = text;
-          try {
-            body = text ? JSON.parse(text) : null;
-          } catch {
-            // Keep the raw body for diagnostics below.
+          function summarizeFailure(response, body, text) {
+            let message = body?.error?.json?.message || body?.message || response.statusText;
+            if (!message && typeof text === 'string') {
+              message = text.includes('Cloudflare Access') ? 'Cloudflare Access denied the request.' : text.slice(0, 220);
+            }
+            return `Dokploy deploy failed (${response.status}): ${message}`;
           }
 
-          if (!response.ok) {
-            let message = body?.error?.json?.message || body?.message || text || response.statusText;
-            if (response.status === 401 && !process.env.DOKPLOY_API_KEY) {
-              message += ' Add DOKPLOY_API_KEY as a repository secret if the Dokploy console requires API-key authentication after Cloudflare Access.';
+          async function deploy(endpoint, withCloudflareAccess) {
+            const requestHeaders = { ...headers };
+            if (!withCloudflareAccess) {
+              delete requestHeaders['CF-Access-Client-Id'];
+              delete requestHeaders['CF-Access-Client-Secret'];
             }
-            throw new Error(`Dokploy deploy failed (${response.status}): ${message}`);
+
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: requestHeaders,
+              body: JSON.stringify(payload)
+            });
+
+            const text = await response.text();
+            let body = text;
+            try {
+              body = text ? JSON.parse(text) : null;
+            } catch {
+              // Keep the raw body for the summarized diagnostic below.
+            }
+
+            if (!response.ok) {
+              throw new Error(summarizeFailure(response, body, text));
+            }
+
+            return body;
+          }
+
+          let body;
+          try {
+            body = await deploy(process.env.DOKPLOY_ENDPOINT, true);
+          } catch (error) {
+            if (!process.env.DOKPLOY_FALLBACK_ENDPOINT) throw error;
+            console.log(`${error.message} Retrying with the Onestack direct Dokploy endpoint.`);
+            body = await deploy(process.env.DOKPLOY_FALLBACK_ENDPOINT, false);
           }
 
           console.log('Dokploy deployment queued.');
-          if (body) {
-            console.log(JSON.stringify(body, null, 2));
-          }
+          if (body) console.log(JSON.stringify(body, null, 2));
           NODE

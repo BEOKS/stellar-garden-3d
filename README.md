@@ -20,7 +20,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 
 ## GitHub Actions 배포
 
-`main` 브랜치에 push되면 `.github/workflows/deploy.yml`이 빌드를 확인한 뒤 Dokploy `compose.deploy` TRPC 엔드포인트를 호출합니다.
+`main` 브랜치에 push되면 `.github/workflows/deploy.yml`이 빌드를 확인한 뒤 Dokploy `compose.deploy` TRPC 엔드포인트를 호출합니다. 워크플로는 `https://console.onestack.run`과 Cloudflare Access 서비스 토큰을 먼저 사용하고, GitHub hosted runner가 Access 정책에 막히면 Onestack 스킬의 기본 Dokploy URL로 재시도합니다.
 
 처음 한 번은 로컬 환경변수에 저장된 API 키로 Dokploy compose 리소스를 만들고 GitHub Actions secrets를 동기화합니다.
 
