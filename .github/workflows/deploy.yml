@@ -37,8 +37,8 @@ jobs:
     permissions:
       contents: read
     env:
-      DOKPLOY_ENDPOINT: https://console.onestack.run/api/trpc/application.deploy
-      DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+      DOKPLOY_ENDPOINT: https://console.onestack.run/api/trpc/compose.deploy
+      DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
       DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
       CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
       CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
@@ -47,7 +47,7 @@ jobs:
         id: config
         run: |
           configured=true
-          for name in DOKPLOY_APPLICATION_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
+          for name in DOKPLOY_COMPOSE_ID DOKPLOY_API_KEY CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
             if [ -z "${!name}" ]; then
               echo "::warning title=Missing secret::$name is not set; skipping Dokploy deployment."
               configured=false
@@ -60,7 +60,8 @@ jobs:
         run: |
           node <<'NODE'
           const required = [
-            'DOKPLOY_APPLICATION_ID',
+            'DOKPLOY_COMPOSE_ID',
+            'DOKPLOY_API_KEY',
             'CF_ACCESS_CLIENT_ID',
             'CF_ACCESS_CLIENT_SECRET'
           ];
@@ -83,7 +84,7 @@ jobs:
           const shortSha = process.env.GITHUB_SHA.slice(0, 7);
           const payload = {
             json: {
-              applicationId: process.env.DOKPLOY_APPLICATION_ID,
+              composeId: process.env.DOKPLOY_COMPOSE_ID,
               title: `GitHub push ${shortSha}`,
               description: `${process.env.GITHUB_REPOSITORY}@${process.env.GITHUB_SHA}`
             }

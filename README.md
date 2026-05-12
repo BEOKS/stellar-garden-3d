@@ -15,23 +15,33 @@ npm start
 ## Docker Compose
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 ## GitHub Actions 배포
 
-`main` 브랜치에 push되면 `.github/workflows/deploy.yml`이 빌드를 확인한 뒤 Dokploy `application.deploy` TRPC 엔드포인트를 호출합니다.
+`main` 브랜치에 push되면 `.github/workflows/deploy.yml`이 빌드를 확인한 뒤 Dokploy `compose.deploy` TRPC 엔드포인트를 호출합니다.
 
-GitHub 저장소에는 다음 Actions secrets가 필요합니다.
+처음 한 번은 로컬 환경변수에 저장된 API 키로 Dokploy compose 리소스를 만들고 GitHub Actions secrets를 동기화합니다.
+
+```bash
+export DOKPLOY_URL="https://console.onestack.run"
+export DOKPLOY_API_KEY="<로컬에 저장된 Dokploy API key>"
+export CF_ACCESS_CLIENT_ID="<Cloudflare Access client id>"
+export CF_ACCESS_CLIENT_SECRET="<Cloudflare Access client secret>"
+npm run dokploy:configure
+```
+
+GitHub 저장소에는 다음 Actions secrets가 설정됩니다.
 
 ```text
 CF_ACCESS_CLIENT_ID
 CF_ACCESS_CLIENT_SECRET
-DOKPLOY_APPLICATION_ID
+DOKPLOY_COMPOSE_ID
 DOKPLOY_API_KEY
 ```
 
-`DOKPLOY_API_KEY`는 Dokploy가 API 키 인증을 요구할 때만 필요합니다. Dokploy 애플리케이션은 이 저장소의 `main` 브랜치와 루트의 `Dockerfile`을 바라보도록 설정하면 됩니다. 컨테이너 포트는 `4877`, 헬스 체크 경로는 `/api/health`입니다.
+Dokploy compose는 이 저장소의 `main` 브랜치와 루트의 `docker-compose.yml`을 바라봅니다. 컨테이너 포트는 `4877`, 헬스 체크 경로는 `/api/health`입니다.
 
 ## 검증
 

@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "start": "node server.js",
-    "verify": "node scripts/verify-app.mjs"
+    "verify": "node scripts/verify-app.mjs",
+    "dokploy:configure": "node scripts/configure-dokploy.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.9.1",

@@ -8,8 +8,8 @@ services:
       NODE_ENV: production
       PORT: 4877
       HOST: 0.0.0.0
-    ports:
-      - "4877:4877"
+    expose:
+      - "4877"
     volumes:
       - stellar-garden-data:/app/data
     healthcheck:

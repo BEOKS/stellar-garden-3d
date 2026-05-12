@@ -1,0 +1,4 @@
+services:
+  stellar-garden-3d:
+    ports:
+      - "4877:4877"
